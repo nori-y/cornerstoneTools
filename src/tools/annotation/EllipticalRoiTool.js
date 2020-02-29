@@ -327,7 +327,7 @@ function _getUnit(modality, showHounsfieldUnits) {
 function _createTextBoxContent(
   context,
   isColorImage,
-  { area, mean, stdDev, min, max, meanStdDevSUV } = {},
+  { area, count, mean, stdDev, min, max, meanStdDevSUV } = {},
   modality,
   hasPixelSpacing,
   options = {}
@@ -342,10 +342,14 @@ function _createTextBoxContent(
     const hasStandardUptakeValues = meanStdDevSUV && meanStdDevSUV.mean !== 0;
     const unit = _getUnit(modality, options.showHounsfieldUnits);
 
-    let meanString = `Mean: ${numbersWithCommas(mean.toFixed(2))} ${unit}`;
-    const stdDevString = `Std Dev: ${numbersWithCommas(
-      stdDev.toFixed(2)
-    )} ${unit}`;
+    let meanString =
+      count === 0
+        ? 'Mean: -'
+        : `Mean: ${numbersWithCommas(mean.toFixed(2))} ${unit}`;
+    const stdDevString =
+      count === 0
+        ? 'Std Dev: -'
+        : `Std Dev: ${numbersWithCommas(stdDev.toFixed(2))} ${unit}`;
 
     // If this image has SUV values to display, concatenate them to the text line
     if (hasStandardUptakeValues) {
@@ -373,8 +377,9 @@ function _createTextBoxContent(
     }
 
     if (showMinMax) {
-      let minString = `Min: ${min} ${unit}`;
-      const maxString = `Max: ${max} ${unit}`;
+      let minString = count === 0 ? 'Min: -' : `Min: ${min} ${unit}`;
+      const maxString = count === 0 ? 'Max: -' : `Max: ${max} ${unit}`;
+
       const targetStringLength = hasStandardUptakeValues
         ? Math.floor(context.measureText(`${stdDevString}     `).width)
         : Math.floor(context.measureText(`${meanString}     `).width);
@@ -438,7 +443,8 @@ function _calculateStats(image, element, handles, modality, pixelSpacing) {
   // Calculate the mean & standard deviation from the pixels and the ellipse details.
   const ellipseMeanStdDev = calculateEllipseStatistics(
     pixels,
-    ellipseCoordinates
+    ellipseCoordinates,
+    image.rescaledPixelPaddingValue
   );
 
   let meanStdDevSUV;
