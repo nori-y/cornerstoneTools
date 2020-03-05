@@ -1,4 +1,4 @@
-/*! cornerstone-tools - 4.0.1 - 2020-02-29 | (c) 2017 Chris Hafey | https://github.com/cornerstonejs/cornerstoneTools */
+/*! cornerstone-tools - 4.0.1 - 2020-03-05 | (c) 2017 Chris Hafey | https://github.com/cornerstonejs/cornerstoneTools */
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	}
 /******/
 /******/ 	var hotApplyOnUpdate = true;
-/******/ 	var hotCurrentHash = "a333343ba38597521141"; // eslint-disable-line no-unused-vars
+/******/ 	var hotCurrentHash = "aef3a4341bd828e5cca1"; // eslint-disable-line no-unused-vars
 /******/ 	var hotRequestTimeout = 10000;
 /******/ 	var hotCurrentModuleData = {};
 /******/ 	var hotCurrentChildModule; // eslint-disable-line no-unused-vars
@@ -23770,7 +23770,7 @@ function (_BaseAnnotationTool) {
         // Retrieve the array of pixels that the ROI bounds cover
         var pixels = _externalModules_js__WEBPACK_IMPORTED_MODULE_8__["default"].cornerstone.getPixels(element, polyBoundingBox.left, polyBoundingBox.top, polyBoundingBox.width, polyBoundingBox.height); // Calculate the mean & standard deviation from the pixels and the object shape
 
-        meanStdDev = calculateFreehandStatistics.call(this, pixels, polyBoundingBox, data.handles.points);
+        meanStdDev = calculateFreehandStatistics.call(this, pixels, polyBoundingBox, data.handles.points, image.rescaledPixelPaddingValue);
 
         if (modality === 'PT') {
           // If the image is from a PET scan, use the DICOM tags to
@@ -23965,9 +23965,9 @@ function (_BaseAnnotationTool) {
 
           data.unit = moSuffix; // Create a line of text to display the mean and any units that were specified (i.e. HU)
 
-          var meanText = "Mean: ".concat(Object(_util_numbersWithCommas_js__WEBPACK_IMPORTED_MODULE_18__["default"])(meanStdDev.mean.toFixed(2)), " ").concat(moSuffix); // Create a line of text to display the standard deviation and any units that were specified (i.e. HU)
+          var meanText = meanStdDev.count === 0 ? 'Mean: -' : "Mean: ".concat(Object(_util_numbersWithCommas_js__WEBPACK_IMPORTED_MODULE_18__["default"])(meanStdDev.mean.toFixed(2)), " ").concat(moSuffix); // Create a line of text to display the standard deviation and any units that were specified (i.e. HU)
 
-          var stdDevText = "StdDev: ".concat(Object(_util_numbersWithCommas_js__WEBPACK_IMPORTED_MODULE_18__["default"])(meanStdDev.stdDev.toFixed(2)), " ").concat(moSuffix); // If this image has SUV values to display, concatenate them to the text line
+          var stdDevText = meanStdDev.count === 0 ? 'StdDev: -' : "StdDev: ".concat(Object(_util_numbersWithCommas_js__WEBPACK_IMPORTED_MODULE_18__["default"])(meanStdDev.stdDev.toFixed(2)), " ").concat(moSuffix); // If this image has SUV values to display, concatenate them to the text line
 
           if (meanStdDevSUV && meanStdDevSUV.mean !== undefined) {
             var SUVtext = ' SUV: ';
@@ -34006,17 +34006,19 @@ __webpack_require__.r(__webpack_exports__);
  * @param {Object} sp An array of the pixel data.
  * @param {Object} boundingBox Rectangular box enclosing the polygon.
  * @param {Object} dataHandles Data object associated with the tool.
+ * @param {number} pixelPaddingValue - A value of padded pixels.
  * @returns {Object} Object containing the derived statistics.
  */
 
 /* harmony default export */ __webpack_exports__["default"] = (function (sp, boundingBox, dataHandles) {
+  var pixelPaddingValue = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : undefined;
   var statisticsObj = {
     count: 0,
     mean: 0.0,
     variance: 0.0,
     stdDev: 0.0
   };
-  var sum = getSum(sp, boundingBox, dataHandles);
+  var sum = getSum(sp, boundingBox, dataHandles, pixelPaddingValue);
 
   if (sum.count === 0) {
     return statisticsObj;
@@ -34037,24 +34039,34 @@ __webpack_require__.r(__webpack_exports__);
  * @param {Object} sp An array of the pixel data.
  * @param {Object} boundingBox Rectangular box enclosing the polygon.
  * @param {Object} dataHandles Data object associated with the tool.
+ * @param {number} pixelPaddingValue - A value of padded pixels.
  * @returns {Object} Object containing the sum, squared sum and pixel count.
  */
 
 function getSum(sp, boundingBox, dataHandles) {
+  var pixelPaddingValue = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : undefined;
   var sum = {
     value: 0,
     squared: 0,
     count: 0
   };
   var index = 0;
+  var hasPaddedPixel = typeof pixelPaddingValue !== 'undefined';
+
+  var isPaddedPixel = function isPaddedPixel(px) {
+    return hasPaddedPixel && px === pixelPaddingValue;
+  };
 
   for (var y = boundingBox.top; y < boundingBox.top + boundingBox.height; y++) {
     for (var x = boundingBox.left; x < boundingBox.left + boundingBox.width; x++) {
-      var point = {
-        x: x,
-        y: y
-      };
-      sumPointIfInFreehand(dataHandles, point, sum, sp[index]);
+      if (!isPaddedPixel(sp[index])) {
+        var point = {
+          x: x,
+          y: y
+        };
+        sumPointIfInFreehand(dataHandles, point, sum, sp[index]);
+      }
+
       index++;
     }
   }
