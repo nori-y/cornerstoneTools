@@ -287,7 +287,8 @@ export default class FreehandRoiTool extends BaseAnnotationTool {
         this,
         pixels,
         polyBoundingBox,
-        data.handles.points
+        data.handles.points,
+        image.rescaledPixelPaddingValue
       );
 
       if (modality === 'PT') {
@@ -519,13 +520,19 @@ export default class FreehandRoiTool extends BaseAnnotationTool {
         data.unit = moSuffix;
 
         // Create a line of text to display the mean and any units that were specified (i.e. HU)
-        let meanText = `Mean: ${numbersWithCommas(
-          meanStdDev.mean.toFixed(2)
-        )} ${moSuffix}`;
+        let meanText =
+          meanStdDev.count === 0
+            ? 'Mean: -'
+            : `Mean: ${numbersWithCommas(
+                meanStdDev.mean.toFixed(2)
+              )} ${moSuffix}`;
         // Create a line of text to display the standard deviation and any units that were specified (i.e. HU)
-        let stdDevText = `StdDev: ${numbersWithCommas(
-          meanStdDev.stdDev.toFixed(2)
-        )} ${moSuffix}`;
+        let stdDevText =
+          meanStdDev.count === 0
+            ? 'StdDev: -'
+            : `StdDev: ${numbersWithCommas(
+                meanStdDev.stdDev.toFixed(2)
+              )} ${moSuffix}`;
 
         // If this image has SUV values to display, concatenate them to the text line
         if (meanStdDevSUV && meanStdDevSUV.mean !== undefined) {

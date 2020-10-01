@@ -8,9 +8,15 @@ import pointInFreehand from './pointInFreehand.js';
  * @param {Object} sp An array of the pixel data.
  * @param {Object} boundingBox Rectangular box enclosing the polygon.
  * @param {Object} dataHandles Data object associated with the tool.
+ * @param {number} pixelPaddingValue - A value of padded pixels.
  * @returns {Object} Object containing the derived statistics.
  */
-export default function(sp, boundingBox, dataHandles) {
+export default function(
+  sp,
+  boundingBox,
+  dataHandles,
+  pixelPaddingValue = undefined
+) {
   const statisticsObj = {
     count: 0,
     mean: 0.0,
@@ -18,7 +24,7 @@ export default function(sp, boundingBox, dataHandles) {
     stdDev: 0.0,
   };
 
-  const sum = getSum(sp, boundingBox, dataHandles);
+  const sum = getSum(sp, boundingBox, dataHandles, pixelPaddingValue);
 
   if (sum.count === 0) {
     return statisticsObj;
@@ -42,9 +48,10 @@ export default function(sp, boundingBox, dataHandles) {
  * @param {Object} sp An array of the pixel data.
  * @param {Object} boundingBox Rectangular box enclosing the polygon.
  * @param {Object} dataHandles Data object associated with the tool.
+ * @param {number} pixelPaddingValue - A value of padded pixels.
  * @returns {Object} Object containing the sum, squared sum and pixel count.
  */
-function getSum(sp, boundingBox, dataHandles) {
+function getSum(sp, boundingBox, dataHandles, pixelPaddingValue = undefined) {
   const sum = {
     value: 0,
     squared: 0,
@@ -52,18 +59,23 @@ function getSum(sp, boundingBox, dataHandles) {
   };
   let index = 0;
 
+  const hasPaddedPixel = typeof pixelPaddingValue !== 'undefined';
+  const isPaddedPixel = px => hasPaddedPixel && px === pixelPaddingValue;
+
   for (let y = boundingBox.top; y < boundingBox.top + boundingBox.height; y++) {
     for (
       let x = boundingBox.left;
       x < boundingBox.left + boundingBox.width;
       x++
     ) {
-      const point = {
-        x,
-        y,
-      };
+      if (!isPaddedPixel(sp[index])) {
+        const point = {
+          x,
+          y,
+        };
 
-      sumPointIfInFreehand(dataHandles, point, sum, sp[index]);
+        sumPointIfInFreehand(dataHandles, point, sum, sp[index]);
+      }
       index++;
     }
   }

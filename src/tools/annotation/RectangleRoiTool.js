@@ -157,6 +157,8 @@ export default class RectangleRoiTool extends BaseAnnotationTool {
 
     data.cachedStats = stats;
     data.invalidated = false;
+
+    return data;
   }
 
   renderToolData(evt) {
@@ -322,7 +324,11 @@ function _calculateStats(image, element, handles, modality, pixelSpacing) {
   );
 
   // Calculate the mean & standard deviation from the pixels and the rectangle details
-  const roiMeanStdDev = _calculateRectangleStats(pixels, roiCoordinates);
+  const roiMeanStdDev = _calculateRectangleStats(
+    pixels,
+    roiCoordinates,
+    image.rescaledPixelPaddingValue
+  );
 
   let meanStdDevSUV;
 
@@ -356,23 +362,38 @@ function _calculateStats(image, element, handles, modality, pixelSpacing) {
  *
  * @param {*} sp
  * @param {*} rectangle
+ * @param {number} pixelPaddingValue - A value of padded pixels.
  * @returns {{ count, number, mean: number,  variance: number,  stdDev: number,  min: number,  max: number }}
  */
-function _calculateRectangleStats(sp, rectangle) {
+function _calculateRectangleStats(
+  sp,
+  rectangle,
+  pixelPaddingValue = undefined
+) {
   let sum = 0;
   let sumSquared = 0;
   let count = 0;
   let index = 0;
-  let min = sp ? sp[0] : null;
-  let max = sp ? sp[0] : null;
+  let min = null;
+  let max = null;
+
+  const hasPaddedPixel = typeof pixelPaddingValue !== 'undefined';
+  const isPaddedPixel = px => hasPaddedPixel && px === pixelPaddingValue;
 
   for (let y = rectangle.top; y < rectangle.top + rectangle.height; y++) {
     for (let x = rectangle.left; x < rectangle.left + rectangle.width; x++) {
-      sum += sp[index];
-      sumSquared += sp[index] * sp[index];
-      min = Math.min(min, sp[index]);
-      max = Math.max(max, sp[index]);
-      count++; // TODO: Wouldn't this just be sp.length?
+      if (!isPaddedPixel(sp[index])) {
+        if (min === null) {
+          min = sp[index];
+          max = sp[index];
+        }
+
+        sum += sp[index];
+        sumSquared += sp[index] * sp[index];
+        min = Math.min(min, sp[index]);
+        max = Math.max(max, sp[index]);
+        count++; // TODO: Wouldn't this just be sp.length?
+      }
       index++;
     }
   }
@@ -473,7 +494,7 @@ function _getUnit(modality, showHounsfieldUnits) {
 function _createTextBoxContent(
   context,
   isColorImage,
-  { area, mean, stdDev, min, max, meanStdDevSUV },
+  { area, count, mean, stdDev, min, max, meanStdDevSUV },
   modality,
   hasPixelSpacing,
   options = {}
@@ -487,10 +508,14 @@ function _createTextBoxContent(
     const hasStandardUptakeValues = meanStdDevSUV && meanStdDevSUV.mean !== 0;
     const unit = _getUnit(modality, options.showHounsfieldUnits);
 
-    let meanString = `Mean: ${numbersWithCommas(mean.toFixed(2))} ${unit}`;
-    const stdDevString = `Std Dev: ${numbersWithCommas(
-      stdDev.toFixed(2)
-    )} ${unit}`;
+    let meanString =
+      count === 0
+        ? 'Mean: -'
+        : `Mean: ${numbersWithCommas(mean.toFixed(2))} ${unit}`;
+    const stdDevString =
+      count === 0
+        ? 'Std Dev: -'
+        : `Std Dev: ${numbersWithCommas(stdDev.toFixed(2))} ${unit}`;
 
     // If this image has SUV values to display, concatenate them to the text line
     if (hasStandardUptakeValues) {
@@ -518,8 +543,9 @@ function _createTextBoxContent(
     }
 
     if (showMinMax) {
-      let minString = `Min: ${min} ${unit}`;
-      const maxString = `Max: ${max} ${unit}`;
+      let minString = count === 0 ? 'Min: -' : `Min: ${min} ${unit}`;
+      const maxString = count === 0 ? 'Max: -' : `Max: ${max} ${unit}`;
+
       const targetStringLength = hasStandardUptakeValues
         ? Math.floor(context.measureText(`${stdDevString}     `).width)
         : Math.floor(context.measureText(`${meanString}     `).width);

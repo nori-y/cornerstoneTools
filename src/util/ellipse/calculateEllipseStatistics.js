@@ -8,15 +8,19 @@ import pointInEllipse from './pointInEllipse.js';
  *
  * @param {number[]} sp - Array of the image data's pixel values.
  * @param {Object} ellipse - { top, left, height, width } - An object describing the ellipse.
+ * @param {number} pixelPaddingValue - A value of padded pixels.
  * @returns {Object} { count, mean, variance, stdDev, min, max }
  */
-export default function(sp, ellipse) {
+export default function(sp, ellipse, pixelPaddingValue = undefined) {
   let sum = 0;
   let sumSquared = 0;
   let count = 0;
   let index = 0;
   let min = null;
   let max = null;
+
+  const hasPaddedPixel = typeof pixelPaddingValue !== 'undefined';
+  const isPaddedPixel = px => hasPaddedPixel && px === pixelPaddingValue;
 
   for (let y = ellipse.top; y < ellipse.top + ellipse.height; y++) {
     for (let x = ellipse.left; x < ellipse.left + ellipse.width; x++) {
@@ -25,7 +29,7 @@ export default function(sp, ellipse) {
         y,
       };
 
-      if (pointInEllipse(ellipse, point)) {
+      if (pointInEllipse(ellipse, point) && !isPaddedPixel(sp[index])) {
         if (min === null) {
           min = sp[index];
           max = sp[index];
